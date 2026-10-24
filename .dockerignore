@@ -1,0 +1,14 @@
+.venv/
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.adk/
+.logs/
+webapp/node_modules/
+webapp/dist/
+*.md
+.git/
+.claude/
+deploy.env
+**/.env.*
+**/*.db

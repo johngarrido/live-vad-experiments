@@ -1,0 +1,59 @@
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+deploy.env
+*.pem
+*.key
+*.p12
+*-sa.json
+*service-account*.json
+credentials*.json
+application_default_credentials.json
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Node / webapp ---
+node_modules/
+webapp/dist/
+*.log
+npm-debug.log*
+
+# --- Runtime state ---
+.adk/
+*.db
+*.sqlite*
+.logs/
+
+# --- Agentic / AI assistant files ---
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+GEMINI.md
+.gemini/
+.cursor/
+.cursorrules
+.windsurfrules
+.github/copilot-instructions.md
+.aider*
+.codex/
+skills/
+.mcp.json
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

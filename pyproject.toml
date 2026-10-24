@@ -1,0 +1,13 @@
+[project]
+name = "cw-live-invest"
+version = "0.1.0"
+description = "Demo de app de investimentos por voz (Gemini 3.8 Live + Google ADK + Vertex AI) com foco em VAD em ambientes ruidosos"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "google-adk",
+    "google-genai",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "certifi",
+]
