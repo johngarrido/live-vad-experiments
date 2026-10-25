@@ -14,7 +14,7 @@ RUN_SERVICE  := lumi
 RUN_SA       := lumi-run@$(GCP_PROJECT).iam.gserviceaccount.com
 
 .DEFAULT_GOAL := help
-.PHONY: help install api agent web adk-web run up down kill kill-api kill-agent kill-web check-ports check-project deploy grant
+.PHONY: help install api agent web adk-web run up down kill kill-api kill-agent kill-web check-ports check-project deploy grant test
 
 # Encerra o que estiver escutando na porta $(1)
 define kill_port
@@ -36,6 +36,9 @@ help: ## List available targets
 install: ## Install Python + webapp dependencies
 	uv sync
 	cd webapp && npm install
+
+test: ## Run the backend test suite (pytest)
+	uv run pytest
 
 api: ## Run the mock investments API (port 8092)
 	uv run uvicorn mock_api.main:app --port $(API_PORT)
