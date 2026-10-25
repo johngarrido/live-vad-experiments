@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { brl } from "../format.js";
-import { TOOL_LABELS } from "./ToolCallout.jsx";
+import { STATUS_TEXT, TOOL_LABELS } from "./ToolCallout.jsx";
 
 // How long each completed operation lingers before the notification advances to
 // the next one, so the user can read each step instead of seeing only the last.
@@ -16,15 +16,6 @@ const TOOL_ICONS = {
   redeem: "↩️",
 };
 
-const STATUS_TEXT = {
-  requer_ciencia_de_risco: "Aguardando ciência de risco",
-  saldo_insuficiente: "Saldo insuficiente",
-  abaixo_do_minimo: "Valor abaixo do mínimo",
-  produto_nao_encontrado: "Produto não encontrado",
-  posicao_nao_encontrada: "Posição não encontrada",
-  valor_maior_que_posicao: "Valor maior que a posição",
-};
-
 function summarize(item) {
   const { name, status, args, response } = item;
   const term = args?.category ?? args?.query;
@@ -36,8 +27,13 @@ function summarize(item) {
   }
 
   const r = response && typeof response === "object" ? response : {};
-  if (r.status && r.status !== "ok" && STATUS_TEXT[r.status]) {
-    return { icon: "⚠️", text: STATUS_TEXT[r.status] };
+  if (r.status && STATUS_TEXT[r.status]) {
+    const text =
+      r.status === "valor_invalido"
+        ? (typeof r.message === "string" && r.message.trim()) ||
+          (r.field === "months" ? "Prazo inválido" : STATUS_TEXT.valor_invalido)
+        : STATUS_TEXT[r.status];
+    return { icon: "⚠️", text };
   }
   switch (name) {
     case "search_investments": {
