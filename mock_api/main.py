@@ -5,7 +5,10 @@ valid_options) em vez de HTTP 4xx — recomendação do guia de migração do Ge
 para evitar chamadas de tool redundantes em sequência.
 """
 
-from fastapi import FastAPI
+import math
+from typing import Annotated
+
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import catalog, store
@@ -23,6 +26,38 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Restrições só como metadado do schema OpenAPI (orientam o modelo). NÃO usar Query(gt=0):
+# a validação do FastAPI viraria 422, quebrando a convenção de erro de negócio com HTTP 200.
+PositiveAmount = Annotated[float, Query(json_schema_extra={"exclusiveMinimum": 0})]
+PositiveMonths = Annotated[int, Query(json_schema_extra={"minimum": 1})]
+
+_INVALID_MESSAGES = {
+    "amount": (
+        "O valor precisa ser maior que zero.",
+        "Peça ao cliente um valor maior que zero e repita a chamada.",
+    ),
+    "months": (
+        "O prazo precisa ser de pelo menos 1 mês.",
+        "Peça ao cliente um prazo de pelo menos 1 mês e repita a chamada.",
+    ),
+}
+
+
+def _invalid_value(field: str, value: float | int) -> dict | None:
+    """Erro valor_invalido se o valor não for finito e maior que zero; senão None."""
+    if math.isfinite(value) and value > 0:
+        return None
+    message, retry_hint = _INVALID_MESSAGES[field]
+    return {
+        "status": "valor_invalido",
+        "retryable": True,
+        "field": field,
+        "message": message,
+        "retry_hint": retry_hint,
+        field: value if math.isfinite(value) else None,
+    }
 
 
 def _not_found(product_id: str) -> dict:
@@ -95,7 +130,9 @@ def get_portfolio(account_id: str) -> dict:
         "Não executa nenhuma ordem."
     ),
 )
-def simulate_investment(product_id: str, amount: float, months: int = 12) -> dict:
+def simulate_investment(product_id: str, amount: PositiveAmount, months: PositiveMonths = 12) -> dict:
+    if error := _invalid_value("amount", amount) or _invalid_value("months", months):
+        return error
     product = catalog.get_product(product_id)
     if not product:
         return _not_found(product_id)
@@ -166,7 +203,9 @@ def invest(product_id: str, amount: float, account_id: str, risk_acknowledged: b
     summary="Resgata dinheiro de uma posição",
     description="Resgata amount reais de uma posição da carteira e credita o saldo em conta.",
 )
-def redeem(product_id: str, amount: float, account_id: str) -> dict:
+def redeem(product_id: str, amount: PositiveAmount, account_id: str) -> dict:
+    if error := _invalid_value("amount", amount):
+        return error
     portfolio = store.get_portfolio(account_id)
     position = next((p for p in portfolio["positions"] if p["product_id"] == product_id), None)
     if not position:
