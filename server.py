@@ -46,7 +46,7 @@ FINANCE_VOCABULARY = [
     "Tesouro IPCA+", "Tesouro Prefixado", "renda fixa", "renda variável", "liquidez diária",
     "FGC", "come-cotas", "multimercado", "fundo imobiliário", "FII", "ETF", "BOVA11", "IVVB11",
     "HASH11", "AURA11", "PETR4", "ITUB4", "Ibovespa", "S&P 500", "cripto", "criptomoeda",
-    "Bitcoin", "Ethereum", "Solana", "suitability", "resgate", "aporte", "Aurora Invest", "Lumi",
+    "Bitcoin", "Ethereum", "Solana", "JPMASC", "suitability", "resgate", "aporte", "Aurora Invest", "Lumi",
 ]
 
 # Carrega agents/invest_live/.env (credenciais Vertex) antes de instanciar o runner.

@@ -74,6 +74,10 @@ PRODUCTS = [
     {"id": "cr-hash11", "name": "ETF HASH11 (cesta de cripto)", "category": "cripto", "risk": "muito alto",
      "yield_label": "cesta de criptoativos na B3", "rentabilidade_anual": 0.24, "min_investment": 45.0,
      "liquidity": "D+2 (bolsa)", "tags": ["cripto", "etf", "diversificado"], "price": 46.90},
+    # Cripto fictícia (issue #6).
+    {"id": "cr-jpmasc", "name": "JPMasc (JPMASC)", "category": "cripto", "risk": "muito alto",
+     "yield_label": "renda variável · alta volatilidade", "rentabilidade_anual": 0.40, "min_investment": 10.0,
+     "liquidity": "imediata (24/7)", "tags": ["cripto", "jpmasc"], "price": 4.20},
 ]
 
 CATEGORIES = sorted({p["category"] for p in PRODUCTS})
@@ -83,6 +87,20 @@ _SYNONYMS = {
     "tesouro": "tesouro direto", "acao": "ações", "acoes": "ações", "ação": "ações",
     "fundo": "fundos", "renda": "renda fixa", "fii": "fii", "emergencia": "reserva de emergência",
 }
+
+
+# Variantes faladas/transcritas de nomes com mais de uma palavra, unidas ANTES de quebrar a
+# busca em termos (a busca aceita qualquer termo; "pe" sozinho casaria PETR4, petróleo etc.).
+_PHRASES = {
+    "jota pê masc": "jpmasc", "jota pe masc": "jpmasc", "j p masc": "jpmasc",
+    "jp masc": "jpmasc", "jp mask": "jpmasc", "jpmask": "jpmasc",
+}
+
+
+def _join_phrases(query: str) -> str:
+    for phrase, joined in _PHRASES.items():
+        query = query.replace(phrase, joined)
+    return query
 
 
 def _normalize(term: str) -> str:
@@ -104,7 +122,7 @@ def search(query: str | None = None, category: str | None = None) -> list[dict]:
             continue
         if query:
             haystack = " ".join([p["name"], p["category"], p["risk"], p["id"], *p["tags"]]).lower()
-            terms = [_normalize(t) for t in query.strip().lower().split()]
+            terms = [_normalize(t) for t in _join_phrases(query.strip().lower()).split()]
             if not any(t in haystack for t in terms):
                 continue
         results.append(public_view(p))
