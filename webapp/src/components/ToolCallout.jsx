@@ -30,7 +30,7 @@ const ERROR_CARD_STATUSES = new Set([
   "valor_maior_que_posicao",
 ]);
 
-const GENERIC_ERROR_MESSAGE = "Não foi possível concluir a operação. Informe um valor maior que zero.";
+const GENERIC_ERROR_MESSAGE = "Não foi possível concluir a operação.";
 
 function ToolErrorCard({ name, response }) {
   const title =
