@@ -120,7 +120,24 @@ function Metrics({ monitor }) {
   );
 }
 
-export default function VadLab({ live, backend, setBackend, vad, applyVad, noise, setNoise, browserDsp, setBrowserDsp, monitor }) {
+export default function VadLab({
+  panel = "both",
+  live,
+  backend,
+  setBackend,
+  vad,
+  applyVad,
+  noise,
+  setNoise,
+  browserDsp,
+  setBrowserDsp,
+  monitor,
+  open = true,
+  onToggle,
+  isDrawer = false,
+  drawerOpen = false,
+  onCloseDrawer,
+}) {
   const [draft, setDraft] = useState(vad);
   const fileRef = useRef(null);
 
@@ -136,232 +153,343 @@ export default function VadLab({ live, backend, setBackend, vad, applyVad, noise
     if (!live) applyVad(preset.settings); // sem sessão: aplica direto, vale na próxima conexão
   };
 
+  const showLab = panel === "both" || panel === "lab";
+  const showMonitor = panel === "both" || panel === "monitor";
+
+  const labAsideClass = isDrawer
+    ? `lab lab-left lab-drawer ${drawerOpen ? "drawer-open" : ""}`
+    : `lab lab-left ${open ? "is-open" : "is-collapsed"}`;
+
+  const monitorAsideClass = isDrawer
+    ? `lab lab-right lab-drawer ${drawerOpen ? "drawer-open" : ""}`
+    : `lab lab-right ${open ? "is-open" : "is-collapsed"}`;
+
   return (
     <>
-      <aside className="lab">
-        <header className="lab-header">
-          <div>
-            <div className="lab-title">Laboratório de VAD</div>
-            <div className="lab-sub mono">gemini-3.8-live · pt-BR · voz Leda</div>
-          </div>
-          <span className={`live-pill ${live ? "on" : ""}`}>{live ? "● ao vivo" : "○ offline"}</span>
-        </header>
+      {showLab && !isDrawer && !open && (
+        <button
+          type="button"
+          className="lab-collapsed-handle left"
+          onClick={() => onToggle?.(true)}
+          aria-expanded="false"
+          aria-label="Expandir Laboratório de VAD"
+          title="Expandir Laboratório de VAD"
+        >
+          <span className="handle-icon">🎛️</span>
+          <span className="handle-label">Laboratório de VAD</span>
+          <span className="handle-chevron">»</span>
+        </button>
+      )}
 
-        <section className="lab-section">
-          <div className="lab-section-title">0 · Backend</div>
-          <Segmented value={backend} options={BACKENDS} onChange={setBackend} disabled={live} />
-          <div className="field-hint">
-            {live
-              ? "Encerre a sessão para trocar — o contexto não é compartilhado entre backends."
-              : backend === "adk"
-                ? "Runner do ADK: tools via OpenAPIToolset, callbacks e histórico em SQLite."
-                : "Live API direto pelo genai SDK: tools, account_id e contexto (session resumption) feitos à mão."}
-          </div>
-        </section>
+      {showLab && (
+        <aside
+          className={labAsideClass}
+          hidden={!isDrawer && !open}
+          aria-hidden={isDrawer ? !drawerOpen : !open}
+          role={isDrawer ? "dialog" : undefined}
+          aria-label="Laboratório de VAD"
+        >
+          <header className="lab-header">
+            <div>
+              <div className="lab-title">Laboratório de VAD</div>
+              <div className="lab-sub mono">gemini-3.8-live · pt-BR · voz Leda</div>
+            </div>
+            <div className="lab-header-actions">
+              <span className={`live-pill ${live ? "on" : ""}`}>{live ? "● ao vivo" : "○ offline"}</span>
+              {isDrawer ? (
+                <button
+                  type="button"
+                  className="lab-toggle-btn close"
+                  onClick={onCloseDrawer}
+                  aria-label="Fechar Laboratório de VAD"
+                >
+                  ✕ Fechar
+                </button>
+              ) : (
+                onToggle && (
+                  <button
+                    type="button"
+                    className="lab-toggle-btn"
+                    onClick={() => onToggle(false)}
+                    aria-expanded="true"
+                    aria-label="Recolher Laboratório de VAD"
+                    title="Recolher painel"
+                  >
+                    « Ocultar
+                  </button>
+                )
+              )}
+            </div>
+          </header>
 
-        <section className="lab-section">
-          <div className="lab-section-title">1 · Cenário de VAD (servidor)</div>
-          <div className="preset-grid">
-            {VAD_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`preset ${activePreset?.id === p.id ? "on" : ""}`}
-                onClick={() => pickPreset(p)}
-                title={p.hint}
-              >
-                <span>{p.icon}</span> {p.label}
-              </button>
-            ))}
-          </div>
-          <div className="field-hint">{activePreset ? activePreset.hint : "Configuração personalizada."}</div>
-
-          <details className="advanced">
-            <summary>Ajuste fino (AutomaticActivityDetection)</summary>
-            <div className={`field ${manual ? "disabled" : ""}`}>
-              <div className="field-head">
-                <span>start_of_speech_sensitivity</span>
-              </div>
-              <Segmented
-                value={draft.startSensitivity}
-                options={SENSITIVITY}
-                onChange={(v) => patch({ startSensitivity: v })}
-                disabled={manual}
-              />
+          <div className="lab-body">
+            <section className="lab-section">
+              <div className="lab-section-title">0 · Backend</div>
+              <Segmented value={backend} options={BACKENDS} onChange={setBackend} disabled={live} />
               <div className="field-hint">
-                baixa = precisa de fala mais clara para abrir o turno (menos falsos disparos)
+                {live
+                  ? "Encerre a sessão para trocar — o contexto não é compartilhado entre backends."
+                  : backend === "adk"
+                    ? "Runner do ADK: tools via OpenAPIToolset, callbacks e histórico em SQLite."
+                    : "Live API direto pelo genai SDK: tools, account_id e contexto (session resumption) feitos à mão."}
               </div>
-            </div>
-            <div className={`field ${manual ? "disabled" : ""}`}>
-              <div className="field-head">
-                <span>end_of_speech_sensitivity</span>
+            </section>
+
+            <section className="lab-section">
+              <div className="lab-section-title">1 · Cenário de VAD (servidor)</div>
+              <div className="preset-grid">
+                {VAD_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`preset ${activePreset?.id === p.id ? "on" : ""}`}
+                    onClick={() => pickPreset(p)}
+                    title={p.hint}
+                  >
+                    <span>{p.icon}</span> {p.label}
+                  </button>
+                ))}
               </div>
-              <Segmented
-                value={draft.endSensitivity}
-                options={SENSITIVITY}
-                onChange={(v) => patch({ endSensitivity: v })}
-                disabled={manual}
-              />
-              <div className="field-hint">baixa = tolera pausas maiores antes de encerrar o turno</div>
-            </div>
-            <MsSlider
-              label="prefix_padding_ms"
-              hint="fala contínua necessária para confirmar o início (filtra buzinas, tosses, batidas)"
-              value={draft.prefixPaddingMs}
-              min={0}
-              max={1000}
-              step={20}
-              fallback={300}
-              onChange={(v) => patch({ prefixPaddingMs: v })}
-              disabled={manual}
-            />
-            <MsSlider
-              label="silence_duration_ms"
-              hint="silêncio necessário para considerar fim de fala"
-              value={draft.silenceDurationMs}
-              min={100}
-              max={2500}
-              step={50}
-              fallback={800}
-              onChange={(v) => patch({ silenceDurationMs: v })}
-              disabled={manual}
-            />
-            <label className="check field">
-              <input
-                type="checkbox"
-                checked={draft.interruptible}
-                onChange={(e) => patch({ interruptible: e.target.checked })}
-              />
-              fala do usuário interrompe o modelo <span className="mono muted">(activity_handling)</span>
-            </label>
-            <label className="check field">
-              <input type="checkbox" checked={manual} onChange={(e) => patch({ manual: e.target.checked })} />
-              VAD desligado · push-to-talk <span className="mono muted">(disabled=true)</span>
-            </label>
-          </details>
+              <div className="field-hint">{activePreset ? activePreset.hint : "Configuração personalizada."}</div>
 
-          <button
-            type="button"
-            className={`apply ${pending ? "pending" : ""}`}
-            disabled={!pending}
-            onClick={() => applyVad(draft)}
-          >
-            {pending ? (live ? "Aplicar e reconectar" : "Aplicar") : "Configuração aplicada ✓"}
-          </button>
-        </section>
+              <details className="advanced">
+                <summary>Ajuste fino (AutomaticActivityDetection)</summary>
+                <div className={`field ${manual ? "disabled" : ""}`}>
+                  <div className="field-head">
+                    <span>start_of_speech_sensitivity</span>
+                  </div>
+                  <Segmented
+                    value={draft.startSensitivity}
+                    options={SENSITIVITY}
+                    onChange={(v) => patch({ startSensitivity: v })}
+                    disabled={manual}
+                  />
+                  <div className="field-hint">
+                    baixa = precisa de fala mais clara para abrir o turno (menos falsos disparos)
+                  </div>
+                </div>
+                <div className={`field ${manual ? "disabled" : ""}`}>
+                  <div className="field-head">
+                    <span>end_of_speech_sensitivity</span>
+                  </div>
+                  <Segmented
+                    value={draft.endSensitivity}
+                    options={SENSITIVITY}
+                    onChange={(v) => patch({ endSensitivity: v })}
+                    disabled={manual}
+                  />
+                  <div className="field-hint">baixa = tolera pausas maiores antes de encerrar o turno</div>
+                </div>
+                <MsSlider
+                  label="prefix_padding_ms"
+                  hint="fala contínua necessária para confirmar o início (filtra buzinas, tosses, batidas)"
+                  value={draft.prefixPaddingMs}
+                  min={0}
+                  max={1000}
+                  step={20}
+                  fallback={300}
+                  onChange={(v) => patch({ prefixPaddingMs: v })}
+                  disabled={manual}
+                />
+                <MsSlider
+                  label="silence_duration_ms"
+                  hint="silêncio necessário para considerar fim de fala"
+                  value={draft.silenceDurationMs}
+                  min={100}
+                  max={2500}
+                  step={50}
+                  fallback={800}
+                  onChange={(v) => patch({ silenceDurationMs: v })}
+                  disabled={manual}
+                />
+                <label className="check field">
+                  <input
+                    type="checkbox"
+                    checked={draft.interruptible}
+                    onChange={(e) => patch({ interruptible: e.target.checked })}
+                  />
+                  fala do usuário interrompe o modelo <span className="mono muted">(activity_handling)</span>
+                </label>
+                <label className="check field">
+                  <input type="checkbox" checked={manual} onChange={(e) => patch({ manual: e.target.checked })} />
+                  VAD desligado · push-to-talk <span className="mono muted">(disabled=true)</span>
+                </label>
+              </details>
 
-        <section className="lab-section">
-          <div className="lab-section-title">2 · Ruído simulado (mixado no microfone)</div>
-          <div className="preset-grid noise">
-            {NOISE_TYPES.map((n) => (
               <button
-                key={n.id}
                 type="button"
-                className={`preset ${noise.type === n.id ? "on" : ""}`}
-                title={n.hint}
-                onClick={() => (n.id === "file" ? fileRef.current?.click() : setNoise({ type: n.id }))}
+                className={`apply ${pending ? "pending" : ""}`}
+                disabled={!pending}
+                onClick={() => applyVad(draft)}
               >
-                <span>{n.icon}</span> {n.id === "file" && noise.file ? noise.file.name.slice(0, 12) : n.label}
+                {pending ? (live ? "Aplicar e reconectar" : "Aplicar") : "Configuração aplicada ✓"}
               </button>
-            ))}
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="audio/*"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) setNoise({ type: "file", file });
-              e.target.value = "";
-            }}
-          />
-          <div className="field">
-            <div className="field-head">
-              <span>volume do ruído</span>
-              <span className="mono">{Math.round(noise.volume * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={noise.volume}
-              onChange={(e) => setNoise({ volume: Number(e.target.value) })}
-            />
-          </div>
-          <label className="check field">
-            <input
-              type="checkbox"
-              checked={noise.monitor}
-              onChange={(e) => setNoise({ monitor: e.target.checked })}
-            />
-            ouvir o ruído no alto-falante <span className="muted">(use fone)</span>
-          </label>
+            </section>
 
-          <div className="lab-section-title sub">Processamento do navegador (getUserMedia)</div>
-          <div className="dsp-row">
-            {[
-              ["noiseSuppression", "supressão de ruído"],
-              ["echoCancellation", "cancelamento de eco"],
-              ["autoGainControl", "ganho automático"],
-            ].map(([key, label]) => (
-              <label key={key} className="check">
+            <section className="lab-section">
+              <div className="lab-section-title">2 · Ruído simulado (mixado no microfone)</div>
+              <div className="preset-grid noise">
+                {NOISE_TYPES.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className={`preset ${noise.type === n.id ? "on" : ""}`}
+                    title={n.hint}
+                    onClick={() => (n.id === "file" ? fileRef.current?.click() : setNoise({ type: n.id }))}
+                  >
+                    <span>{n.icon}</span> {n.id === "file" && noise.file ? noise.file.name.slice(0, 12) : n.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="audio/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setNoise({ type: "file", file });
+                  e.target.value = "";
+                }}
+              />
+              <div className="field">
+                <div className="field-head">
+                  <span>volume do ruído</span>
+                  <span className="mono">{Math.round(noise.volume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={noise.volume}
+                  onChange={(e) => setNoise({ volume: Number(e.target.value) })}
+                />
+              </div>
+              <label className="check field">
                 <input
                   type="checkbox"
-                  checked={browserDsp[key]}
-                  onChange={(e) => setBrowserDsp({ [key]: e.target.checked })}
+                  checked={noise.monitor}
+                  onChange={(e) => setNoise({ monitor: e.target.checked })}
                 />
-                {label}
+                ouvir o ruído no alto-falante <span className="muted">(use fone)</span>
               </label>
-            ))}
-          </div>
-          <div className="field-hint">
-            Desligue a supressão para mandar o áudio cru e ver só o VAD do Gemini trabalhando. O ruído
-            simulado entra depois desse processamento, então ele sempre chega ao modelo.
-          </div>
-        </section>
-      </aside>
 
-      <aside className="lab">
-        <header className="lab-header">
-          <div>
-            <div className="lab-title">Monitor de VAD</div>
-            <div className="lab-sub mono">explicit_vad_signal · eventos do servidor</div>
+              <div className="lab-section-title sub">Processamento do navegador (getUserMedia)</div>
+              <div className="dsp-row">
+                {[
+                  ["noiseSuppression", "supressão de ruído"],
+                  ["echoCancellation", "cancelamento de eco"],
+                  ["autoGainControl", "ganho automático"],
+                ].map(([key, label]) => (
+                  <label key={key} className="check">
+                    <input
+                      type="checkbox"
+                      checked={browserDsp[key]}
+                      onChange={(e) => setBrowserDsp({ [key]: e.target.checked })}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <div className="field-hint">
+                Desligue a supressão para mandar o áudio cru e ver só o VAD do Gemini trabalhando. O ruído
+                simulado entra depois desse processamento, então ele sempre chega ao modelo.
+              </div>
+            </section>
           </div>
-        </header>
-        <section className="lab-section grow">
-          <div className="lab-section-title">Linha do tempo · últimos 20s</div>
-          <VadTimeline monitor={monitor} />
-          <div className="legend">
-            <span>
-              <i className="lg-user" />
-              VAD
-            </span>
-            <span>
-              <i className="lg-manual" />
-              manual
-            </span>
-            <span>
-              <i className="lg-false" />
-              falso disparo
-            </span>
-            <span>
-              <i className="lg-model" />
-              Lumi
-            </span>
-            <span>
-              <i className="lg-int" />
-              interrupção
-            </span>
-            <span>
-              <i className="lg-tool" />
-              tool
-            </span>
+        </aside>
+      )}
+
+      {showMonitor && !isDrawer && !open && (
+        <button
+          type="button"
+          className="lab-collapsed-handle right"
+          onClick={() => onToggle?.(true)}
+          aria-expanded="false"
+          aria-label="Expandir Monitor de VAD"
+          title="Expandir Monitor de VAD"
+        >
+          <span className="handle-chevron">«</span>
+          <span className="handle-label">Monitor de VAD</span>
+          <span className="handle-icon">📈</span>
+        </button>
+      )}
+
+      {showMonitor && (
+        <aside
+          className={monitorAsideClass}
+          hidden={!isDrawer && !open}
+          aria-hidden={isDrawer ? !drawerOpen : !open}
+          role={isDrawer ? "dialog" : undefined}
+          aria-label="Monitor de VAD"
+        >
+          <header className="lab-header">
+            <div>
+              <div className="lab-title">Monitor de VAD</div>
+              <div className="lab-sub mono">explicit_vad_signal · eventos do servidor</div>
+            </div>
+            <div className="lab-header-actions">
+              {isDrawer ? (
+                <button
+                  type="button"
+                  className="lab-toggle-btn close"
+                  onClick={onCloseDrawer}
+                  aria-label="Fechar Monitor de VAD"
+                >
+                  ✕ Fechar
+                </button>
+              ) : (
+                onToggle && (
+                  <button
+                    type="button"
+                    className="lab-toggle-btn"
+                    onClick={() => onToggle(false)}
+                    aria-expanded="true"
+                    aria-label="Recolher Monitor de VAD"
+                    title="Recolher painel"
+                  >
+                    Ocultar »
+                  </button>
+                )
+              )}
+            </div>
+          </header>
+          <div className="lab-body">
+            <section className="lab-section grow">
+              <div className="lab-section-title">Linha do tempo · últimos 20s</div>
+              <VadTimeline monitor={monitor} />
+              <div className="legend">
+                <span>
+                  <i className="lg-user" />
+                  VAD
+                </span>
+                <span>
+                  <i className="lg-manual" />
+                  manual
+                </span>
+                <span>
+                  <i className="lg-false" />
+                  falso disparo
+                </span>
+                <span>
+                  <i className="lg-model" />
+                  Lumi
+                </span>
+                <span>
+                  <i className="lg-int" />
+                  interrupção
+                </span>
+                <span>
+                  <i className="lg-tool" />
+                  tool
+                </span>
+              </div>
+              <Metrics monitor={monitor} />
+            </section>
           </div>
-          <Metrics monitor={monitor} />
-        </section>
-      </aside>
+        </aside>
+      )}
     </>
   );
 }
