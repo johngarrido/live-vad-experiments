@@ -10,7 +10,9 @@ import VoiceToggle from "./VoiceToggle.jsx";
 
 export default function Chat({
   items,
+  live = true,
   speaking,
+  start,
   sendText,
   getAmplitude,
   voiceEnabled,
@@ -19,6 +21,9 @@ export default function Chat({
   pttActive,
   pttDown,
   pttUp,
+  portfolioVersion = 0,
+  onOpenLab,
+  onOpenMonitor,
 }) {
   const [draft, setDraft] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -26,18 +31,26 @@ export default function Chat({
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
-  const togglePanel = () => {
-    if (panelOpen) {
-      setPanelOpen(false);
-      return;
-    }
-    setPanelOpen(true);
+  const loadPortfolio = () => {
     setLoading(true);
     fetchPortfolio()
       .then(setPortfolio)
       .catch(() => setPortfolio(null))
       .finally(() => setLoading(false));
   };
+
+  const togglePanel = () => {
+    if (panelOpen) {
+      setPanelOpen(false);
+      return;
+    }
+    setPanelOpen(true);
+    loadPortfolio();
+  };
+
+  useEffect(() => {
+    if (panelOpen) loadPortfolio();
+  }, [portfolioVersion]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -57,17 +70,47 @@ export default function Chat({
     if (item.status === "done" && item.name === "get_portfolio") lastPortfolioId = item.id;
   }
 
-  const status = speaking ? "falando…" : manual ? (pttActive ? "ouvindo" : "push-to-talk") : "ouvindo";
+  const status = !live
+    ? "pronta para conversar"
+    : speaking
+      ? "falando…"
+      : manual
+        ? pttActive
+          ? "ouvindo"
+          : "push-to-talk"
+        : "ouvindo";
 
   return (
     <div className="chat">
       <header className="chat-header">
         <Sphere getAmplitude={getAmplitude} size={36} />
-        <div>
+        <div className="chat-header-meta">
           <div className="chat-title">Lumi</div>
           <div className="chat-status">{status}</div>
         </div>
         <VoiceToggle enabled={voiceEnabled} onChange={toggleVoice} />
+        {onOpenLab && (
+          <button
+            type="button"
+            className="mobile-drawer-btn mobile-only"
+            onClick={onOpenLab}
+            aria-label="Abrir Laboratório de VAD"
+            title="Laboratório de VAD"
+          >
+            <span aria-hidden="true">🎛️</span> Lab
+          </button>
+        )}
+        {onOpenMonitor && (
+          <button
+            type="button"
+            className="mobile-drawer-btn mobile-only"
+            onClick={onOpenMonitor}
+            aria-label="Abrir Monitor de VAD"
+            title="Monitor de VAD"
+          >
+            <span aria-hidden="true">📈</span> Monitor
+          </button>
+        )}
         <button
           type="button"
           className={`icon-button ${panelOpen ? "open" : ""}`}
@@ -76,43 +119,74 @@ export default function Chat({
         >
           💼
         </button>
-        <span className={`mic-dot ${speaking || (manual && !pttActive) ? "" : "live"}`} />
+        <span className={`mic-dot ${!live || speaking || (manual && !pttActive) ? "" : "live"}`} />
         {panelOpen && (
-          <PortfolioPanel portfolio={portfolio} loading={loading} onClose={() => setPanelOpen(false)} />
+          <PortfolioPanel
+            portfolio={portfolio}
+            loading={loading}
+            onClose={() => setPanelOpen(false)}
+            onRetry={loadPortfolio}
+          />
         )}
       </header>
 
       <div className="messages" ref={scrollRef}>
-        {items.map((item) => {
-          if (item.kind === "tool")
-            return <ToolCallout key={item.id} item={item} showPortfolio={item.id === lastPortfolioId} />;
-          if (item.kind === "note")
-            return (
-              <div key={item.id} className="system-note">
-                {item.text}
-              </div>
-            );
-          return (
-            <div key={item.id} className={`bubble ${item.kind}`}>
-              {item.text}
-              {!item.final && <span className="cursor">▍</span>}
+        {items.length === 0 ? (
+          <div className="chat-empty">
+            <Sphere getAmplitude={live ? getAmplitude : () => 0} size={108} />
+            <div className="chat-empty-text">
+              <strong>{live ? "Lumi está na escuta" : "Converse com a Lumi"}</strong>
+              <span className="muted small">
+                {live
+                  ? manual
+                    ? "Segure o botão abaixo para falar ou envie uma mensagem de texto."
+                    : "Fale no microfone ou digite uma mensagem abaixo para começar."
+                  : "Inicie uma sessão para consultar o mercado, simular rendimentos ou movimentar sua carteira."}
+              </span>
             </div>
-          );
-        })}
-        <ToolNotification tools={tools} />
+            {!live && start && (
+              <button type="button" className="talk-button" onClick={start}>
+                🎤 Começar a conversar
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {items.map((item) => {
+              if (item.kind === "tool")
+                return <ToolCallout key={item.id} item={item} showPortfolio={item.id === lastPortfolioId} />;
+              if (item.kind === "note")
+                return (
+                  <div key={item.id} className="system-note">
+                    {item.text}
+                  </div>
+                );
+              return (
+                <div key={item.id} className={`bubble ${item.kind}`}>
+                  {item.text}
+                  {!item.final && <span className="cursor">▍</span>}
+                </div>
+              );
+            })}
+            <ToolNotification tools={tools} />
+          </>
+        )}
       </div>
 
-      <form className="composer" onSubmit={submit}>
-        {manual && <PushToTalk active={pttActive} onDown={pttDown} onUp={pttUp} compact />}
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ou digite uma mensagem…"
-        />
-        <button type="submit" className="send" disabled={!draft.trim()}>
-          ↑
-        </button>
-      </form>
+      {(live || items.length > 0) && (
+        <form className="composer" onSubmit={submit}>
+          {live && manual && <PushToTalk active={pttActive} onDown={pttDown} onUp={pttUp} compact />}
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={!live}
+            placeholder={live ? "Ou digite uma mensagem…" : "Sessão encerrada — inicie uma nova conversa"}
+          />
+          <button type="submit" className="send" disabled={!live || !draft.trim()} aria-label="Enviar mensagem">
+            ↑
+          </button>
+        </form>
+      )}
     </div>
   );
 }

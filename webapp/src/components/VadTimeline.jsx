@@ -15,24 +15,41 @@ export default function VadTimeline({ monitor, width = 336 }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = HEIGHT * dpr;
-    ctx.scale(dpr, dpr);
+    let currentWidth = canvas.parentElement?.clientWidth || width;
+
+    const updateSize = () => {
+      const nextWidth = canvas.parentElement?.clientWidth || width;
+      if (nextWidth > 0) currentWidth = nextWidth;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = currentWidth * dpr;
+      canvas.height = HEIGHT * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    updateSize();
+
+    let ro;
+    if (typeof ResizeObserver !== "undefined" && canvas.parentElement) {
+      ro = new ResizeObserver(updateSize);
+      ro.observe(canvas.parentElement);
+    }
+
     let raf = 0;
 
     const draw = () => {
+      const w = currentWidth;
       const m = monitor.state;
       const now = performance.now();
       const t0 = now - monitor.WINDOW_MS;
-      const x = (t) => ((t - t0) / monitor.WINDOW_MS) * width;
+      const x = (t) => ((t - t0) / monitor.WINDOW_MS) * w;
 
-      ctx.clearRect(0, 0, width, HEIGHT);
+      ctx.clearRect(0, 0, w, HEIGHT);
 
       for (const lane of LANES) {
         ctx.fillStyle = "rgba(255,255,255,0.035)";
-        ctx.fillRect(0, lane.y, width, lane.h);
+        ctx.fillRect(0, lane.y, w, lane.h);
       }
 
       // Nível do mic: escala log, ~-60 dBFS..0 dBFS.
@@ -42,7 +59,7 @@ export default function VadTimeline({ monitor, width = 336 }) {
         const v = Math.max(0, Math.min(1, (db + 60) / 60));
         const h = v * mic.h;
         ctx.fillStyle = v > 0.55 ? "rgba(46,230,166,0.9)" : "rgba(160,170,200,0.55)";
-        ctx.fillRect(x(t), mic.y + mic.h - h, Math.max(1, width / 500), h);
+        ctx.fillRect(x(t), mic.y + mic.h - h, Math.max(1, w / 500), h);
       }
 
       const drawSegments = (segments, lane, colorFor) => {
@@ -83,13 +100,16 @@ export default function VadTimeline({ monitor, width = 336 }) {
       ctx.fillStyle = "rgba(220,225,245,0.55)";
       for (const lane of LANES) ctx.fillText(lane.label, 4, lane.y + 10);
       ctx.fillText("-20s", 4, HEIGHT - 1);
-      ctx.fillText("agora", width - 34, HEIGHT - 1);
+      ctx.fillText("agora", w - 34, HEIGHT - 1);
 
       raf = requestAnimationFrame(draw);
     };
     draw();
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+    };
   }, [monitor, width]);
 
-  return <canvas ref={canvasRef} style={{ width, height: HEIGHT }} className="vad-timeline" />;
+  return <canvas ref={canvasRef} style={{ width: "100%", height: HEIGHT }} className="vad-timeline" />;
 }
